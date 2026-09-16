@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mi planeación</title>
+<title>My Planning</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -255,8 +255,8 @@
 <body>
 <div class="wrap">
   <header class="top">
-    <h1>Mi planeación</h1>
-    <span class="storage-note" id="storageNote">Sincronizando…</span>
+    <h1>My Planning</h1>
+    <span class="storage-note" id="storageNote">Syncing…</span>
   </header>
 
   <div id="homeView"></div>
@@ -267,8 +267,8 @@
 (function(){
   "use strict";
 
-  // Config de tu proyecto Firebase (Configuración del proyecto → General → Tus apps → SDK setup).
-  // Ver README.md para los pasos para crear el proyecto y pegar estos valores.
+  // Your Firebase project config (Project settings → General → Your apps → SDK setup).
+  // See README.md for the steps to create the project and fill in these values.
   const firebaseConfig = {
     apiKey: "AIzaSyCUg67VGoEJ8NcyJpdVVkH44__SzUkmsr0",
     authDomain: "my-planning-cbe30.firebaseapp.com",
@@ -279,10 +279,10 @@
   };
 
   const GRADES = [
-    {id:'6', name:'Sexto',   color:'var(--accent-6)'},
-    {id:'7', name:'Séptimo', color:'var(--accent-7)'},
-    {id:'8', name:'Octavo',  color:'var(--accent-8)'},
-    {id:'9', name:'Noveno',  color:'var(--accent-9)'},
+    {id:'6', name:'Sixth',   color:'var(--accent-6)'},
+    {id:'7', name:'Seventh', color:'var(--accent-7)'},
+    {id:'8', name:'Eighth',  color:'var(--accent-8)'},
+    {id:'9', name:'Ninth',   color:'var(--accent-9)'},
   ];
   const LETTERS = ['A','B','C'];
 
@@ -301,7 +301,7 @@
   }
 
   // ephemeral: which link fields are showing the raw-URL input vs the
-  // compact "enlace guardado" chip. Links with content default to chip
+  // compact "link saved" chip. Links with content default to chip
   // view (hides the long URL) until the user taps the edit icon.
   const linkEditState = {};
   function isLinkEditing(key, hasContent){
@@ -372,23 +372,23 @@
     GRADES.forEach(grade=>{
       const loaded = !!state.grades[grade.id];
       html += `<section class="grade-block">
-        <h2><span class="grade-dot" style="--dot:${grade.color}"></span>${grade.name} · ${grade.id}°</h2>
+        <h2><span class="grade-dot" style="--dot:${grade.color}"></span>${grade.name} Grade</h2>
         <div class="group-row">`;
       LETTERS.forEach(letter=>{
         const groupId = grade.id + letter;
         if(!loaded || !state.groups[groupId]){
-          html += `<div class="group-card" style="--dot:${grade.color}"><div class="g-name">${groupId}</div><div class="g-empty">Cargando…</div></div>`;
+          html += `<div class="group-card" style="--dot:${grade.color}"><div class="g-name">${groupId}</div><div class="g-empty">Loading…</div></div>`;
           return;
         }
         const s = summarize(groupId);
         let bodyHtml;
         if(s.total === 0){
-          bodyHtml = `<div class="g-empty">Sin temario aún</div>`;
+          bodyHtml = `<div class="g-empty">No lessons yet</div>`;
         } else {
           const pct = Math.round((s.done/s.total)*100);
-          const nextLine = s.nextTitle ? escapeHtml(s.nextTitle) : '¡Completado!';
+          const nextLine = s.nextTitle ? escapeHtml(s.nextTitle) : 'Completed!';
           bodyHtml = `
-            <div class="g-frac">${s.done}/${s.total} lecciones</div>
+            <div class="g-frac">${s.done}/${s.total} lessons</div>
             <div class="g-bar"><div class="g-bar-fill" style="width:${pct}%; --dot:${grade.color}"></div></div>
             <div class="g-next">${nextLine}</div>`;
         }
@@ -413,14 +413,15 @@
 
     let rows = '';
     if(lessons.length === 0){
-      rows = `<p class="empty-state">Todavía no hay lecciones para ${grade.name.toLowerCase()} grado. Agrega la primera abajo — se compartirá con 6A/B/C del mismo grado, cada grupo lleva su propio avance.</p>`;
+      const groupList = LETTERS.map(l=>g+l).join('/');
+      rows = `<p class="empty-state">No lessons yet for ${grade.name} grade. Add the first one below — it'll be shared with ${groupList}, each group tracks its own progress.</p>`;
     } else {
       rows = '<ol class="lesson-list">' + lessons.map(lesson=>{
         const p = progress[lesson.id] || {done:false, notes:''};
         const slidesKey = lesson.id+':slides';
         const worksheetKey = lesson.id+':worksheet';
         const notesKey = lesson.id+':notes';
-        const slidesLink = lesson.slidesLink || lesson.link || ''; // lesson.link = valor de versiones anteriores
+        const slidesLink = lesson.slidesLink || lesson.link || ''; // lesson.link = value from older versions
         const worksheetLink = lesson.worksheetLink || '';
         const hasSlides = !!slidesLink.trim();
         const hasWorksheet = !!worksheetLink.trim();
@@ -437,22 +438,22 @@
               <input class="lesson-title-input" value="${escapeAttr(lesson.title)}"
                 onfocus="app.setEditing(true)"
                 onblur="app.setEditing(false); app.renameLesson('${lesson.id}', this.value)">
-              <button class="icon-btn ${hasSlides?'active':''}" title="Diapositivas" aria-label="Diapositivas" onclick="app.togglePanel('${slidesKey}', ${hasSlides})">📊</button>
+              <button class="icon-btn ${hasSlides?'active':''}" title="Slides" aria-label="Slides" onclick="app.togglePanel('${slidesKey}', ${hasSlides})">📊</button>
               <button class="icon-btn ${hasWorksheet?'active':''}" title="Worksheet" aria-label="Worksheet" onclick="app.togglePanel('${worksheetKey}', ${hasWorksheet})">📝</button>
-              <button class="icon-btn ${hasNotes?'active':''}" title="Comentario" aria-label="Comentario" onclick="app.togglePanel('${notesKey}', ${hasNotes})">💬</button>
+              <button class="icon-btn ${hasNotes?'active':''}" title="Comment" aria-label="Comment" onclick="app.togglePanel('${notesKey}', ${hasNotes})">💬</button>
             </div>
             <div class="lesson-extra">
               ${slidesOpen ? renderLinkRow({
-                key: slidesKey, icon:'📊', placeholder:'Enlace a las diapositivas (Drive)...',
+                key: slidesKey, icon:'📊', placeholder:'Slides link (Drive)...',
                 value: slidesLink, hasContent: hasSlides,
                 saveFn: 'saveSlidesLink', lessonId: lesson.id
               }) : ''}
               ${worksheetOpen ? renderLinkRow({
-                key: worksheetKey, icon:'📝', placeholder:'Enlace al worksheet (Drive)...',
+                key: worksheetKey, icon:'📝', placeholder:'Worksheet link (Drive)...',
                 value: worksheetLink, hasContent: hasWorksheet,
                 saveFn: 'saveWorksheetLink', lessonId: lesson.id
               }) : ''}
-              ${notesOpen ? `<textarea class="lesson-notes" placeholder="Comentario para este grupo (qué faltó, tarea dejada...)"
+              ${notesOpen ? `<textarea class="lesson-notes" placeholder="Comment for this group (what was missed, homework assigned...)"
                 onfocus="app.setEditing(true)"
                 onblur="app.setEditing(false)"
                 oninput="app.debouncedSaveNotes('${lesson.id}', this.value)">${escapeHtml(p.notes||'')}</textarea>` : ''}
@@ -470,8 +471,8 @@
       </div>
       ${rows}
       <div class="add-lesson-row">
-        <input id="newLessonInput" placeholder="Nueva lección o tema..." onkeydown="if(event.key==='Enter') app.addLesson()">
-        <button style="background:${grade.color}" onclick="app.addLesson()">Agregar</button>
+        <input id="newLessonInput" placeholder="New lesson or topic..." onkeydown="if(event.key==='Enter') app.addLesson()">
+        <button style="background:${grade.color}" onclick="app.addLesson()">Add</button>
       </div>
     `;
   }
@@ -482,9 +483,9 @@
     if(!editing){
       return `<div class="link-row">
         <span class="link-label">${icon}</span>
-        <span class="link-chip">🔗 Enlace guardado</span>
-        <button class="icon-btn" title="Editar enlace" aria-label="Editar enlace" onclick="app.toggleLinkEdit('${key}')">✏️</button>
-        <a class="open-link" href="${escapeAttr(value)}" target="_blank" rel="noopener">Abrir ↗</a>
+        <span class="link-chip">🔗 Link saved</span>
+        <button class="icon-btn" title="Edit link" aria-label="Edit link" onclick="app.toggleLinkEdit('${key}')">✏️</button>
+        <a class="open-link" href="${escapeAttr(value)}" target="_blank" rel="noopener">Open ↗</a>
       </div>`;
     }
     return `<div class="link-row">
@@ -492,7 +493,7 @@
       <input class="link-input" placeholder="${escapeAttr(placeholder)}" value="${escapeAttr(value)}"
         onfocus="app.setEditing(true)"
         onblur="app.setEditing(false); app.${saveFn}('${lessonId}', this.value); app.finishLinkEdit('${key}')">
-      ${hasContent ? `<a class="open-link" href="${escapeAttr(value)}" target="_blank" rel="noopener">Abrir ↗</a>` : ''}
+      ${hasContent ? `<a class="open-link" href="${escapeAttr(value)}" target="_blank" rel="noopener">Open ↗</a>` : ''}
     </div>`;
   }
 
@@ -573,7 +574,7 @@
     },
     renameLesson(lessonId, newTitle){
       newTitle = newTitle.trim();
-      if(!newTitle) newTitle = 'Sin título';
+      if(!newTitle) newTitle = 'Untitled';
       const g = gradeOf(currentGroup);
       const gradeData = state.grades[g] || {lessons:[]};
       const lesson = gradeData.lessons.find(l=>l.id===lessonId);
@@ -599,7 +600,7 @@
       const btn = evt.currentTarget;
       if(btn.dataset.confirm !== '1'){
         btn.dataset.confirm = '1';
-        btn.textContent = 'Quitar';
+        btn.textContent = 'Remove';
         btn.classList.add('confirm');
         setTimeout(()=>{ btn.dataset.confirm=''; btn.textContent='×'; btn.classList.remove('confirm'); }, 3000);
         return;
@@ -630,7 +631,7 @@
 
     if(db){
       storageMode = 'db';
-      noteEl.textContent = 'Guardado automático · varios dispositivos';
+      noteEl.textContent = 'Auto-saved · synced across devices';
       GRADES.forEach(grade=>{
         db.doc('grades/'+grade.id).onSnapshot(snap=>{
           state.grades[grade.id] = snap.exists ? snap.data() : {lessons:[]};
@@ -646,7 +647,7 @@
       });
     } else {
       storageMode = 'local';
-      noteEl.textContent = 'Modo local (solo este navegador)';
+      noteEl.textContent = 'Local mode (this browser only)';
       noteEl.classList.add('local');
       GRADES.forEach(grade=>{
         loadGradeLocal(grade.id);
