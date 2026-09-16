@@ -193,6 +193,14 @@
   }
   .check{display:flex;align-items:flex-start;padding-top:3px;cursor:pointer;}
   .check input{width:17px;height:17px;cursor:pointer;accent-color:var(--dot,#3e7cb1);}
+  .reorder-btns{display:flex;flex-direction:column;gap:2px;padding-top:2px;flex-shrink:0;}
+  .reorder-btns button{
+    border:1px solid var(--line);background:var(--bg-elevated);color:var(--ink-soft);
+    border-radius:4px;width:20px;height:18px;font-size:0.6rem;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;padding:0;
+  }
+  .reorder-btns button:hover:not(:disabled){background:var(--line-soft);}
+  .reorder-btns button:disabled{opacity:0.3;cursor:default;}
   .lesson-main{flex:1;min-width:0;}
   .lesson-line1{display:flex;align-items:center;gap:6px;}
   .lesson-title-input{
@@ -460,7 +468,9 @@
       const sharedMsg = grade.groups.length > 1 ? ` It'll be shared with ${groupList}, each group tracks its own progress.` : '';
       rows = `<p class="empty-state">No lessons yet for ${gradeLabel}. Add the first one below.${sharedMsg}</p>`;
     } else {
-      rows = '<ol class="lesson-list">' + lessons.map(lesson=>{
+      rows = '<ol class="lesson-list">' + lessons.map((lesson, idx)=>{
+        const isFirst = idx === 0;
+        const isLast = idx === lessons.length - 1;
         const p = progress[lesson.id] || {done:false, notes:''};
         const slidesKey = lesson.id+':slides';
         const worksheetKey = lesson.id+':worksheet';
@@ -477,6 +487,10 @@
           <label class="check">
             <input type="checkbox" ${p.done?'checked':''} onchange="app.toggleLesson('${lesson.id}', this.checked)">
           </label>
+          <div class="reorder-btns">
+            <button title="Move up" aria-label="Move up" ${isFirst?'disabled':''} onclick="app.moveLesson('${lesson.id}', -1)">▲</button>
+            <button title="Move down" aria-label="Move down" ${isLast?'disabled':''} onclick="app.moveLesson('${lesson.id}', 1)">▼</button>
+          </div>
           <div class="lesson-main">
             <div class="lesson-line1">
               <input class="lesson-title-input" value="${escapeAttr(lesson.title)}"
@@ -626,6 +640,17 @@
         lesson.title = newTitle;
         saveGrade(g, gradeData);
       }
+      renderDetail();
+    },
+    moveLesson(lessonId, delta){
+      const g = gradeOf(currentGroup);
+      const gradeData = state.grades[g] || {lessons:[]};
+      const idx = gradeData.lessons.findIndex(l=>l.id===lessonId);
+      const newIdx = idx + delta;
+      if(idx === -1 || newIdx < 0 || newIdx >= gradeData.lessons.length) return;
+      const [lesson] = gradeData.lessons.splice(idx, 1);
+      gradeData.lessons.splice(newIdx, 0, lesson);
+      saveGrade(g, gradeData);
       renderDetail();
     },
     addLesson(){
