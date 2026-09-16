@@ -21,6 +21,7 @@
     --accent-7:#4c9a6a;
     --accent-8:#b1793e;
     --accent-9:#8b5fbf;
+    --accent-el:#2a8f86;
     --danger:#b1493e;
     --danger-bg:#f6e9e7;
     --done-bg:#eaf3ea;
@@ -87,6 +88,9 @@
     border-radius:20px;
   }
   .storage-note.local{color:var(--accent-8);border-color:var(--accent-8);}
+  .today-banner{
+    font-size:0.85rem;color:var(--ink-soft);margin:-18px 0 24px;
+  }
 
   /* ---------- HOME ---------- */
   .grade-block{margin-bottom:30px;}
@@ -125,6 +129,12 @@
   }
   .group-card:hover{transform:translateY(-1px);}
   .group-card:focus-visible{outline:2px solid var(--dot,#999);outline-offset:2px;}
+  .group-card.today-class{box-shadow:0 0 0 2px var(--dot,#999), var(--shadow);}
+  .today-badge{
+    display:inline-block;font-size:0.62rem;font-weight:600;letter-spacing:0.02em;
+    text-transform:uppercase;color:#fff;background:var(--dot,#999);
+    padding:1px 6px;border-radius:10px;margin-left:6px;vertical-align:middle;
+  }
   .group-card .g-name{
     font-family:'Fraunces', serif;
     font-weight:600;
@@ -258,6 +268,7 @@
     <h1>My Planning</h1>
     <span class="storage-note" id="storageNote">Syncing…</span>
   </header>
+  <div class="today-banner hidden" id="todayBanner"></div>
 
   <div id="homeView"></div>
   <div id="detailView" class="hidden"></div>
@@ -279,12 +290,36 @@
   };
 
   const GRADES = [
-    {id:'6', name:'Sixth',   color:'var(--accent-6)'},
-    {id:'7', name:'Seventh', color:'var(--accent-7)'},
-    {id:'8', name:'Eighth',  color:'var(--accent-8)'},
-    {id:'9', name:'Ninth',   color:'var(--accent-9)'},
+    {id:'6',  name:'Sixth',    color:'var(--accent-6)', groups:['A','B','C']},
+    {id:'7',  name:'Seventh',  color:'var(--accent-7)', groups:['A','B','C']},
+    {id:'8',  name:'Eighth',   color:'var(--accent-8)', groups:['A','B','C']},
+    {id:'9',  name:'Ninth',    color:'var(--accent-9)', groups:['A','B','C']},
+    {id:'EL', name:'Elective', color:'var(--accent-el)', groups:['']},
   ];
-  const LETTERS = ['A','B','C'];
+  // groupId ("6A", "EL", ...) -> gradeId, built once from GRADES above.
+  const GROUP_TO_GRADE = {};
+  GRADES.forEach(grade => grade.groups.forEach(suffix => { GROUP_TO_GRADE[grade.id+suffix] = grade.id; }));
+
+  // Your Google Calendar API key, used to read which rotation day (1-6) the
+  // school's academic calendar says today is (looks for a "Día N" event).
+  // Leave apiKey as-is to skip this feature. See README.md for setup steps.
+  const CALENDAR_CONFIG = {
+    apiKey: 'YOUR_GOOGLE_API_KEY',
+    calendarId: 'comunicaciones@liceoingles.edu.co'
+  };
+
+  // Which groups you teach on each rotation day, from your bell schedule.
+  // Duty/location periods (Snack, Restaurant, Flex, Coliseo...) aren't
+  // classes and are left out. Update this if your schedule changes.
+  const SCHEDULE_BY_DAY = {
+    '1': ['6C','8C','7A','7B','8B'],
+    '2': ['7B','6A','8A','7A','8C'],
+    '3': ['6A','6B','7C'],
+    '4': ['9C','8B','7C','6C'],
+    '5': ['9B','9A','9C'],
+    '6': ['9A','8A','6B','EL'],
+  };
+  let todayDayNumber = null; // '1'-'6' once known, else null (no school today, or not fetched yet)
 
   const state = { grades:{}, groups:{} };
   let currentGroup = null; // e.g. "6A"
@@ -351,9 +386,11 @@
   }
 
   // ---------- data helpers ----------
-  function gradeOf(groupId){ return groupId[0]; }
-  function letterOf(groupId){ return groupId[1]; }
+  function gradeOf(groupId){ return GROUP_TO_GRADE[groupId]; }
   function gradeInfo(gradeId){ return GRADES.find(g=>g.id===gradeId); }
+  function isTodayClass(groupId){
+    return !!(todayDayNumber && SCHEDULE_BY_DAY[todayDayNumber] && SCHEDULE_BY_DAY[todayDayNumber].includes(groupId));
+  }
 
   function summarize(groupId){
     const g = gradeOf(groupId);
@@ -371,13 +408,18 @@
     let html = '';
     GRADES.forEach(grade=>{
       const loaded = !!state.grades[grade.id];
+      const colStyle = grade.groups.length !== 3 ? ` style="grid-template-columns:repeat(${grade.groups.length}, 1fr)"` : '';
+      const sectionLabel = grade.groups.length > 1 ? `${grade.name} Grade` : grade.name;
       html += `<section class="grade-block">
-        <h2><span class="grade-dot" style="--dot:${grade.color}"></span>${grade.name} Grade</h2>
-        <div class="group-row">`;
-      LETTERS.forEach(letter=>{
-        const groupId = grade.id + letter;
+        <h2><span class="grade-dot" style="--dot:${grade.color}"></span>${sectionLabel}</h2>
+        <div class="group-row"${colStyle}>`;
+      grade.groups.forEach(suffix=>{
+        const groupId = grade.id + suffix;
+        const label = suffix ? groupId : grade.name;
+        const todayCls = isTodayClass(groupId) ? ' today-class' : '';
+        const todayBadge = isTodayClass(groupId) ? ' <span class="today-badge">Today</span>' : '';
         if(!loaded || !state.groups[groupId]){
-          html += `<div class="group-card" style="--dot:${grade.color}"><div class="g-name">${groupId}</div><div class="g-empty">Loading…</div></div>`;
+          html += `<div class="group-card${todayCls}" style="--dot:${grade.color}"><div class="g-name">${label}</div><div class="g-empty">Loading…</div></div>`;
           return;
         }
         const s = summarize(groupId);
@@ -392,8 +434,8 @@
             <div class="g-bar"><div class="g-bar-fill" style="width:${pct}%; --dot:${grade.color}"></div></div>
             <div class="g-next">${nextLine}</div>`;
         }
-        html += `<button class="group-card" style="--dot:${grade.color}" onclick="app.openGroup('${groupId}')">
-          <div class="g-name">${groupId}</div>
+        html += `<button class="group-card${todayCls}" style="--dot:${grade.color}" onclick="app.openGroup('${groupId}')">
+          <div class="g-name">${label}${todayBadge}</div>
           ${bodyHtml}
         </button>`;
       });
@@ -413,8 +455,10 @@
 
     let rows = '';
     if(lessons.length === 0){
-      const groupList = LETTERS.map(l=>g+l).join('/');
-      rows = `<p class="empty-state">No lessons yet for ${grade.name} grade. Add the first one below — it'll be shared with ${groupList}, each group tracks its own progress.</p>`;
+      const gradeLabel = grade.groups.length > 1 ? `${grade.name} grade` : grade.name;
+      const groupList = grade.groups.map(suf=>grade.id+suf).join('/');
+      const sharedMsg = grade.groups.length > 1 ? ` It'll be shared with ${groupList}, each group tracks its own progress.` : '';
+      rows = `<p class="empty-state">No lessons yet for ${gradeLabel}. Add the first one below.${sharedMsg}</p>`;
     } else {
       rows = '<ol class="lesson-list">' + lessons.map(lesson=>{
         const p = progress[lesson.id] || {done:false, notes:''};
@@ -467,7 +511,7 @@
     detailView.innerHTML = `
       <div class="detail-header">
         <button class="back-btn" onclick="app.goHome()">← ${grade.name}</button>
-        <h2>${currentGroup}</h2>
+        <h2>${grade.groups.length > 1 ? currentGroup : grade.name}</h2>
       </div>
       ${rows}
       <div class="add-lesson-row">
@@ -615,6 +659,35 @@
   };
   window.app = app;
 
+  // ---------- academic calendar: today's rotation day ----------
+  async function fetchTodayDayNumber(){
+    if(!CALENDAR_CONFIG.apiKey || CALENDAR_CONFIG.apiKey === 'YOUR_GOOGLE_API_KEY') return;
+    try{
+      const bogotaDate = new Intl.DateTimeFormat('en-CA', {timeZone:'America/Bogota', year:'numeric', month:'2-digit', day:'2-digit'}).format(new Date());
+      const timeMin = `${bogotaDate}T00:00:00-05:00`;
+      const timeMax = `${bogotaDate}T23:59:59-05:00`;
+      const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_CONFIG.calendarId)}/events`
+        + `?key=${encodeURIComponent(CALENDAR_CONFIG.apiKey)}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true`;
+      const res = await fetch(url);
+      if(!res.ok) return;
+      const data = await res.json();
+      for(const ev of (data.items || [])){
+        const m = /(?:d[ií]a|day)\s*#?\s*([1-6])\b/i.exec(ev.summary || '');
+        if(m){ todayDayNumber = m[1]; break; }
+      }
+    }catch(e){ console.error('calendar fetch error', e); }
+  }
+  function updateTodayBanner(){
+    const el = document.getElementById('todayBanner');
+    if(!el) return;
+    if(todayDayNumber){
+      el.textContent = `Today: Day ${todayDayNumber}`;
+      el.classList.remove('hidden');
+    } else {
+      el.classList.add('hidden');
+    }
+  }
+
   // ---------- init ----------
   async function init(){
     const noteEl = document.getElementById('storageNote');
@@ -637,8 +710,8 @@
           state.grades[grade.id] = snap.exists ? snap.data() : {lessons:[]};
           if(!editingActive) render();
         }, err=>{ console.error('grade snapshot error', err); });
-        LETTERS.forEach(letter=>{
-          const groupId = grade.id+letter;
+        grade.groups.forEach(suffix=>{
+          const groupId = grade.id+suffix;
           db.doc('groups/'+groupId).onSnapshot(snap=>{
             state.groups[groupId] = snap.exists ? snap.data() : {progress:{}};
             if(!editingActive) render();
@@ -651,11 +724,16 @@
       noteEl.classList.add('local');
       GRADES.forEach(grade=>{
         loadGradeLocal(grade.id);
-        LETTERS.forEach(letter=> loadGroupLocal(grade.id+letter));
+        grade.groups.forEach(suffix=> loadGroupLocal(grade.id+suffix));
       });
       render();
     }
     render();
+
+    fetchTodayDayNumber().then(()=>{
+      updateTodayBanner();
+      if(!editingActive) render();
+    });
   }
 
   init();
