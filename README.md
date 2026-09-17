@@ -57,6 +57,18 @@ El colegio publica un calendario público donde cada día de clase tiene un even
 
 El mapeo de qué grupos ves cada día (D1-D6) está en `const SCHEDULE_BY_DAY = {...}` dentro de `index.html`. Si el colegio te cambia el horario, edita esas listas con los grupos correctos por día (usa `'EL'` para Electiva) y vuelve a hacer commit/push.
 
+Los horarios de campana (para el indicador "🕐 Period N" junto a "Today: Day N") están en `const MS_SCHEDULE` (6°-8° y Electiva) y `const HS_SCHEDULE` (9°), un poco más abajo en el mismo archivo.
+
+## Email a estudiantes ausentes
+
+Cada lección tiene un botón ✉️ que te pide el correo del estudiante y abre tu app de correo (Gmail, Outlook...) con un mensaje ya redactado: qué se perdió, y los links de diapositivas/worksheet/comentario de esa lección, listo para revisar y enviar.
+
+## Atajo para Classroom
+
+Cada lección tiene un botón 🏫 que copia el título + links de esa lección al portapapeles y abre Google Classroom para que pegues y publiques el borrador en segundos.
+
+Si quieres que te lleve directo al curso correcto (en vez de la portada de Classroom), busca `const CLASSROOM_COURSE_IDS` en `index.html` y pon el ID de cada curso — lo sacas de la URL cuando entras al curso en Classroom: `classroom.google.com/c/ESTE_ES_EL_ID`.
+
 ### Nota de seguridad sobre Firestore en "modo de prueba"
 
 El modo de prueba deja la base de datos abierta a cualquiera que tenga tu `firebaseConfig` (que queda visible en el código fuente de la página, ya que es una app 100% del lado del cliente). Para un planeador de clases sin datos sensibles esto suele ser aceptable, pero si te preocupa:
