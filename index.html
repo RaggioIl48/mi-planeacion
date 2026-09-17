@@ -851,6 +851,11 @@
       if(!editingActive) render();
     });
     setInterval(updateTodayBanner, 60000); // keep the current-period text fresh
+    // Background/inactive tabs get their timers throttled by the browser,
+    // so also refresh immediately whenever the tab becomes visible again.
+    document.addEventListener('visibilitychange', ()=>{
+      if(document.visibilityState === 'visible') updateTodayBanner();
+    });
   }
 
   init();
