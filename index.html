@@ -336,16 +336,17 @@
     calendarId: 'comunicaciones@liceoingles.edu.co'
   };
 
-  // Which groups you teach on each rotation day, from your bell schedule.
-  // Duty/location periods (Snack, Restaurant, Flex, Coliseo...) aren't
-  // classes and are left out. Update this if your schedule changes.
+  // Which groups you teach on each rotation day, and in which period, from
+  // your bell schedule. Duty/location periods (Snack, Restaurant, Flex,
+  // Coliseo...) aren't classes and are left out. Update this if your
+  // schedule changes.
   const SCHEDULE_BY_DAY = {
-    '1': ['6C','8C','7A','7B','8B'],
-    '2': ['7B','6A','8A','7A','8C'],
-    '3': ['6A','6B','7C'],
-    '4': ['9C','8B','7C','6C'],
-    '5': ['9B','9A','9C'],
-    '6': ['9A','8A','6B','EL'],
+    '1': { '6C':['Period 1'], '8C':['Period 3'], '7A':['Period 4'], '7B':['Period 5'], '8B':['Period 6'] },
+    '2': { '7B':['Period 1'], '6A':['Period 2'], '8A':['Period 3'], '7A':['Period 4'], '8C':['Period 6'] },
+    '3': { '6A':['Period 2'], '6B':['Period 4'], '7C':['Period 5'] },
+    '4': { '9C':['Homeroom'], '8B':['Period 2'], '7C':['Period 3'], '6C':['Period 4'] },
+    '5': { '9B':['Homeroom','Break'], '9A':['Period 2'], '9C':['Period 5'] },
+    '6': { '9A':['Homeroom'], '8A':['Period 2'], '6B':['Period 5'], 'EL':['Period 6'] },
   };
   let todayDayNumber = null; // '1'-'6' once known, else null (no school today, or not fetched yet)
 
@@ -550,15 +551,14 @@
   // ---------- data helpers ----------
   function gradeOf(groupId){ return GROUP_TO_GRADE[groupId]; }
   function gradeInfo(gradeId){ return GRADES.find(g=>g.id===gradeId); }
-  function todayClassNumber(groupId){
+  function todayPeriodLabel(groupId){
     if(!todayDayNumber) return null;
-    const list = SCHEDULE_BY_DAY[todayDayNumber];
-    if(!list) return null;
-    const idx = list.indexOf(groupId);
-    return idx === -1 ? null : idx + 1; // 1st, 2nd, 3rd... class of the day, not tied to the clock
+    const day = SCHEDULE_BY_DAY[todayDayNumber];
+    const periods = day && day[groupId];
+    return periods ? periods.join(' · ') : null;
   }
   function isTodayClass(groupId){
-    return todayClassNumber(groupId) !== null;
+    return todayPeriodLabel(groupId) !== null;
   }
   function classroomCourseIdFor(groupId){
     const raw = (CLASSROOM_LINKS[groupId] || '').trim();
@@ -591,9 +591,9 @@
       grade.groups.forEach(suffix=>{
         const groupId = grade.id + suffix;
         const label = suffix ? groupId : grade.name;
-        const classNum = todayClassNumber(groupId);
-        const todayCls = classNum ? ' today-class' : '';
-        const todayBadge = classNum ? ` <span class="today-badge">Class ${classNum}</span>` : '';
+        const periodLabel = todayPeriodLabel(groupId);
+        const todayCls = periodLabel ? ' today-class' : '';
+        const todayBadge = periodLabel ? ` <span class="today-badge">${escapeHtml(periodLabel)}</span>` : '';
         const room = ROOM_NUMBERS[groupId];
         const roomBadge = room ? ` <span class="g-room">🚪 ${escapeHtml(room)}</span>` : '';
         if(!loaded || !state.groups[groupId]){

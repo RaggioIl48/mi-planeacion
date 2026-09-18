@@ -55,7 +55,7 @@ El colegio publica un calendario público donde cada día de clase tiene un even
 
 ### Si cambia tu horario de campana
 
-El mapeo de qué grupos ves cada día (D1-D6) está en `const SCHEDULE_BY_DAY = {...}` dentro de `index.html`. Si el colegio te cambia el horario, edita esas listas con los grupos correctos por día (usa `'EL'` para Electiva) y vuelve a hacer commit/push.
+El mapeo de qué grupos ves cada día (D1-D6) está en `const SCHEDULE_BY_DAY = {...}` dentro de `index.html`. Si el colegio te cambia el horario, edita cada día con los grupos y el periodo en que los ves, ej. `'8C':['Period 6']` (usa `'EL'` para Electiva; si un grupo se repite en el día, pon varios: `['Homeroom','Break']`) y vuelve a hacer commit/push. Ese periodo es el que aparece en la etiqueta de la tarjeta.
 
 Los horarios de campana (para el indicador "🕐 Period N" junto a "Today: Day N") están en `const MS_SCHEDULE` (6°-8° y Electiva) y `const HS_SCHEDULE` (9°), un poco más abajo en el mismo archivo.
 
