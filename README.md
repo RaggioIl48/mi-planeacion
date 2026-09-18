@@ -59,15 +59,23 @@ El mapeo de qué grupos ves cada día (D1-D6) está en `const SCHEDULE_BY_DAY = 
 
 Los horarios de campana (para el indicador "🕐 Period N" junto a "Today: Day N") están en `const MS_SCHEDULE` (6°-8° y Electiva) y `const HS_SCHEDULE` (9°), un poco más abajo en el mismo archivo.
 
-## Email a estudiantes ausentes
-
-Cada lección tiene un botón ✉️ que te pide el correo del estudiante y abre tu app de correo (Gmail, Outlook...) con un mensaje ya redactado: qué se perdió, y los links de diapositivas/worksheet/comentario de esa lección, listo para revisar y enviar.
-
 ## Atajo para Classroom
 
 Cada lección tiene un botón 🏫 que copia el título + links de esa lección al portapapeles y abre Google Classroom para que pegues y publiques el borrador en segundos.
 
-Si quieres que te lleve directo al curso correcto (en vez de la portada de Classroom), busca `const CLASSROOM_COURSE_IDS` en `index.html` y pon el ID de cada curso — lo sacas de la URL cuando entras al curso en Classroom: `classroom.google.com/c/ESTE_ES_EL_ID`.
+Para que te lleve directo al curso correcto de cada grupo (en vez de la portada general de Classroom), busca `const CLASSROOM_LINKS` en `index.html` y pega el link de cada grupo — entra a ese grupo en Classroom y copia lo que salga en la barra de direcciones, por ejemplo:
+```js
+const CLASSROOM_LINKS = {
+  '6A':'https://classroom.google.com/c/NzE4MjM0NTY3ODkw',
+  '6B':'',
+  ...
+};
+```
+Puedes pegar el link completo tal cual (la app le saca el ID sola) o solo el ID si lo prefieres.
+
+## Número de salón por grupo
+
+Cada tarjeta de grupo (y el encabezado al entrarle) muestra su salón con 🚪. Si cambian los salones de un año a otro, edita `const ROOM_NUMBERS` en `index.html`.
 
 ### Nota de seguridad sobre Firestore en "modo de prueba"
 

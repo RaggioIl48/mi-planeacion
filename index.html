@@ -160,6 +160,12 @@
   .group-card .g-empty{
     font-size:0.78rem;color:var(--ink-soft);font-style:italic;
   }
+  .g-room{
+    font-size:0.7rem;color:var(--ink-soft);
+    background:var(--line-soft);border-radius:10px;
+    padding:1px 7px;display:inline-block;margin-left:6px;vertical-align:middle;
+  }
+  .detail-room{font-size:0.9rem;color:var(--ink-soft);font-weight:500;}
 
   /* ---------- DETAIL ---------- */
   .detail-header{
@@ -353,11 +359,27 @@
     {label:'Period 5', start:'12:05', end:'12:50'},
   ];
 
-  // Optional: each grade's Google Classroom course ID (from its Classroom
-  // URL: classroom.google.com/c/COURSE_ID), used by the "Copy for
-  // Classroom" shortcut to jump straight to that course. Leave blank to
-  // just open the Classroom homepage instead.
-  const CLASSROOM_COURSE_IDS = { '6':'', '7':'', '8':'', '9':'', 'EL':'' };
+  // Optional: each group's Google Classroom link, used by the "Copy for
+  // Classroom" shortcut to jump straight to that group's course. Paste
+  // either the full URL (classroom.google.com/c/COURSE_ID/...) or just the
+  // COURSE_ID. Leave blank to just open the Classroom homepage instead.
+  const CLASSROOM_LINKS = {
+    '6A':'', '6B':'', '6C':'',
+    '7A':'', '7B':'', '7C':'',
+    '8A':'', '8B':'', '8C':'',
+    '9A':'', '9B':'', '9C':'',
+    'EL':''
+  };
+
+  // Each group's classroom/room number, shown on its card. Edit if rooms
+  // change for a new school year.
+  const ROOM_NUMBERS = {
+    '6A':'2', '6B':'3', '6C':'4',
+    '7A':'Music Room', '7B':'6', '7C':'15',
+    '8A':'14', '8B':'1', '8C':'5',
+    '9A':'7', '9B':'8', '9C':'9',
+    'EL':''
+  };
 
   const state = { grades:{}, groups:{} };
   let currentGroup = null; // e.g. "6A"
@@ -456,8 +478,10 @@
         const label = suffix ? groupId : grade.name;
         const todayCls = isTodayClass(groupId) ? ' today-class' : '';
         const todayBadge = isTodayClass(groupId) ? ' <span class="today-badge">Today</span>' : '';
+        const room = ROOM_NUMBERS[groupId];
+        const roomBadge = room ? ` <span class="g-room">🚪 ${escapeHtml(room)}</span>` : '';
         if(!loaded || !state.groups[groupId]){
-          html += `<div class="group-card${todayCls}" style="--dot:${grade.color}"><div class="g-name">${label}</div><div class="g-empty">Loading…</div></div>`;
+          html += `<div class="group-card${todayCls}" style="--dot:${grade.color}"><div class="g-name">${label}${roomBadge}</div><div class="g-empty">Loading…</div></div>`;
           return;
         }
         const s = summarize(groupId);
@@ -473,7 +497,7 @@
             <div class="g-next">${nextLine}</div>`;
         }
         html += `<button class="group-card${todayCls}" style="--dot:${grade.color}" onclick="app.openGroup('${groupId}')">
-          <div class="g-name">${label}${todayBadge}</div>
+          <div class="g-name">${label}${todayBadge}${roomBadge}</div>
           ${bodyHtml}
         </button>`;
       });
@@ -529,7 +553,6 @@
               <button class="icon-btn ${hasSlides?'active':''}" title="Slides" aria-label="Slides" onclick="app.togglePanel('${slidesKey}', ${hasSlides})">📊</button>
               <button class="icon-btn ${hasWorksheet?'active':''}" title="Worksheet" aria-label="Worksheet" onclick="app.togglePanel('${worksheetKey}', ${hasWorksheet})">📝</button>
               <button class="icon-btn ${hasNotes?'active':''}" title="Comment" aria-label="Comment" onclick="app.togglePanel('${notesKey}', ${hasNotes})">💬</button>
-              <button class="icon-btn" title="Email absent student" aria-label="Email absent student" onclick="app.emailAbsent('${lesson.id}')">✉️</button>
               <button class="icon-btn" title="Copy for Classroom" aria-label="Copy for Classroom" onclick="app.copyForClassroom('${lesson.id}')">🏫</button>
             </div>
             <div class="lesson-extra">
@@ -558,6 +581,7 @@
       <div class="detail-header">
         <button class="back-btn" onclick="app.goHome()">← ${grade.name}</button>
         <h2>${grade.groups.length > 1 ? currentGroup : grade.name}</h2>
+        ${ROOM_NUMBERS[currentGroup] ? `<span class="detail-room">🚪 ${escapeHtml(ROOM_NUMBERS[currentGroup])}</span>` : ''}
       </div>
       ${rows}
       <div class="add-lesson-row">
@@ -712,25 +736,6 @@
       saveGrade(g, gradeData);
       renderDetail();
     },
-    emailAbsent(lessonId){
-      const g = gradeOf(currentGroup);
-      const gradeData = state.grades[g] || {lessons:[]};
-      const lesson = gradeData.lessons.find(l=>l.id===lessonId);
-      if(!lesson) return;
-      const email = window.prompt("Student's email address:");
-      if(!email || !email.trim()) return;
-      const progress = (state.groups[currentGroup] && state.groups[currentGroup].progress) || {};
-      const p = progress[lesson.id] || {};
-      const slidesLink = (lesson.slidesLink || lesson.link || '').trim();
-      const worksheetLink = (lesson.worksheetLink || '').trim();
-      const lines = [`Hi,`, '', `You missed our "${lesson.title}" class (${currentGroup}). To catch up, please:`, ''];
-      if(slidesLink) lines.push(`- Review the slides: ${slidesLink}`);
-      if(worksheetLink) lines.push(`- Complete the worksheet: ${worksheetLink}`);
-      if(p.notes && p.notes.trim()) lines.push(`- Notes from class: ${p.notes.trim()}`);
-      lines.push('', 'Let me know if you have questions.');
-      const subject = `Catch-up: ${lesson.title} (${currentGroup})`;
-      window.location.href = `mailto:${email.trim()}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
-    },
     async copyForClassroom(lessonId){
       const g = gradeOf(currentGroup);
       const gradeData = state.grades[g] || {lessons:[]};
@@ -742,8 +747,13 @@
       if(worksheetLink) parts.push(`Worksheet: ${worksheetLink}`);
       if(slidesLink) parts.push(`Slides: ${slidesLink}`);
       try{ await navigator.clipboard.writeText(parts.join('\n')); }catch(e){ console.error('clipboard error', e); }
-      const courseId = CLASSROOM_COURSE_IDS[g];
-      const url = courseId ? `https://classroom.google.com/c/${courseId}/a/create` : 'https://classroom.google.com/u/0/h';
+      const raw = (CLASSROOM_LINKS[currentGroup] || '').trim();
+      let url = 'https://classroom.google.com/u/0/h';
+      if(raw){
+        const m = /\/c\/([a-zA-Z0-9_-]+)/.exec(raw);
+        const courseId = m ? m[1] : raw;
+        url = `https://classroom.google.com/c/${courseId}/a/create`;
+      }
       window.open(url, '_blank', 'noopener');
     },
     debouncedSaveNotes
