@@ -61,7 +61,7 @@ Los horarios de campana (para el indicador "🕐 Period N" junto a "Today: Day N
 
 ## Atajo para Classroom
 
-Cada lección tiene un botón 🏫 que copia el título + links de esa lección al portapapeles y abre Google Classroom para que pegues y publiques el borrador en segundos.
+Cada lección tiene un botón 🏫 que simplemente abre el curso de Classroom de ese grupo en una pestaña nueva.
 
 Para que te lleve directo al curso correcto de cada grupo (en vez de la portada general de Classroom), busca `const CLASSROOM_LINKS` en `index.html` y pega el link de cada grupo — entra a ese grupo en Classroom y copia lo que salga en la barra de direcciones, por ejemplo:
 ```js

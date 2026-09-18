@@ -663,7 +663,7 @@
               <button class="icon-btn ${hasSlides?'active':''}" title="Slides" aria-label="Slides" onclick="app.togglePanel('${slidesKey}', ${hasSlides})">📊</button>
               <button class="icon-btn ${hasWorksheet?'active':''}" title="Worksheet" aria-label="Worksheet" onclick="app.togglePanel('${worksheetKey}', ${hasWorksheet})">📝</button>
               <button class="icon-btn ${hasNotes?'active':''}" title="Comment" aria-label="Comment" onclick="app.togglePanel('${notesKey}', ${hasNotes})">💬</button>
-              <button class="icon-btn" title="Copy for Classroom" aria-label="Copy for Classroom" onclick="app.copyForClassroom('${lesson.id}')">🏫</button>
+              <button class="icon-btn" title="Open Classroom" aria-label="Open Classroom" onclick="app.openClassroom()">🏫</button>
               <button class="icon-btn ${sendOpen?'active':''}" title="Send file to Classroom" aria-label="Send file to Classroom" onclick="app.togglePanel('${sendKey}', false)">📤</button>
             </div>
             <div class="lesson-extra">
@@ -857,19 +857,9 @@
       saveGrade(g, gradeData);
       renderDetail();
     },
-    async copyForClassroom(lessonId){
-      const g = gradeOf(currentGroup);
-      const gradeData = state.grades[g] || {lessons:[]};
-      const lesson = gradeData.lessons.find(l=>l.id===lessonId);
-      if(!lesson) return;
-      const slidesLink = (lesson.slidesLink || lesson.link || '').trim();
-      const worksheetLink = (lesson.worksheetLink || '').trim();
-      const parts = [lesson.title, ''];
-      if(worksheetLink) parts.push(`Worksheet: ${worksheetLink}`);
-      if(slidesLink) parts.push(`Slides: ${slidesLink}`);
-      try{ await navigator.clipboard.writeText(parts.join('\n')); }catch(e){ console.error('clipboard error', e); }
+    openClassroom(){
       const courseId = classroomCourseIdFor(currentGroup);
-      const url = courseId ? `https://classroom.google.com/c/${courseId}/a/create` : 'https://classroom.google.com/u/0/h';
+      const url = courseId ? `https://classroom.google.com/c/${courseId}` : 'https://classroom.google.com/u/0/h';
       window.open(url, '_blank', 'noopener');
     },
     async sendToClassroom(lessonId, btn){
