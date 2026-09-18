@@ -550,8 +550,15 @@
   // ---------- data helpers ----------
   function gradeOf(groupId){ return GROUP_TO_GRADE[groupId]; }
   function gradeInfo(gradeId){ return GRADES.find(g=>g.id===gradeId); }
+  function todayClassNumber(groupId){
+    if(!todayDayNumber) return null;
+    const list = SCHEDULE_BY_DAY[todayDayNumber];
+    if(!list) return null;
+    const idx = list.indexOf(groupId);
+    return idx === -1 ? null : idx + 1; // 1st, 2nd, 3rd... class of the day, not tied to the clock
+  }
   function isTodayClass(groupId){
-    return !!(todayDayNumber && SCHEDULE_BY_DAY[todayDayNumber] && SCHEDULE_BY_DAY[todayDayNumber].includes(groupId));
+    return todayClassNumber(groupId) !== null;
   }
   function classroomCourseIdFor(groupId){
     const raw = (CLASSROOM_LINKS[groupId] || '').trim();
@@ -584,8 +591,9 @@
       grade.groups.forEach(suffix=>{
         const groupId = grade.id + suffix;
         const label = suffix ? groupId : grade.name;
-        const todayCls = isTodayClass(groupId) ? ' today-class' : '';
-        const todayBadge = isTodayClass(groupId) ? ' <span class="today-badge">Today</span>' : '';
+        const classNum = todayClassNumber(groupId);
+        const todayCls = classNum ? ' today-class' : '';
+        const todayBadge = classNum ? ` <span class="today-badge">Class ${classNum}</span>` : '';
         const room = ROOM_NUMBERS[groupId];
         const roomBadge = room ? ` <span class="g-room">🚪 ${escapeHtml(room)}</span>` : '';
         if(!loaded || !state.groups[groupId]){
