@@ -73,6 +73,32 @@ const CLASSROOM_LINKS = {
 ```
 Puedes pegar el link completo tal cual (la app le saca el ID sola) o solo el ID si lo prefieres.
 
+## Enviar archivos a Classroom como borrador (automático)
+
+Además del atajo 🏫 (copiar + abrir Classroom), cada lección tiene un botón **📤** que sube un archivo desde tu computador a tu Drive y crea directamente una tarea en modo **borrador** en Classroom, con el archivo adjunto — cada estudiante recibe su propia copia para trabajar. Tú entras a Classroom cuando quieras, revisas, y le das "Publicar".
+
+Esto sí requiere que autorices el acceso una vez (a diferencia de la API key de arriba, que es de solo lectura, esto crea contenido en tu cuenta). Pasos:
+
+1. En el mismo proyecto de Google Cloud que usaste para el calendario ([console.cloud.google.com](https://console.cloud.google.com)):
+   - Busca y habilita **"Google Classroom API"**.
+   - Busca y habilita **"Google Drive API"**.
+2. Ve a **APIs y servicios → Pantalla de consentimiento de OAuth**:
+   - Tipo de usuario: **Externo**.
+   - Completa nombre de la app, tu correo, etc.
+   - En "Scopes" (permisos), agrega:
+     - `.../auth/classroom.coursework.students`
+     - `.../auth/drive.file`
+   - En "Usuarios de prueba" (Test users), agrega tu propio correo institucional/Google.
+   - Guarda — la app queda en modo **"Prueba"**, lo cual es normal y suficiente para uso personal (evita el proceso de verificación de Google, que toma semanas y no aplica aquí).
+3. Ve a **APIs y servicios → Credenciales → Crear credenciales → ID de cliente de OAuth**:
+   - Tipo de aplicación: **Aplicación web**.
+   - En "Orígenes autorizados de JavaScript" agrega `https://TU_USUARIO.github.io`.
+   - Crea, y copia el **Client ID** (termina en `.apps.googleusercontent.com`).
+4. Abre [index.html](index.html), busca `const OAUTH_CONFIG = {...}` y reemplaza `'YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com'` con tu Client ID.
+5. Guarda, haz commit y push.
+
+**La primera vez que uses el botón 📤**, Google te va a mostrar una pantalla de advertencia tipo "Esta app no está verificada". Es normal — haz clic en **"Avanzado"** → **"Ir a [nombre de tu app] (no seguro)"** y acepta los permisos. Solo te lo pedirá ocasionalmente, no cada vez.
+
 ## Número de salón por grupo
 
 Cada tarjeta de grupo (y el encabezado al entrarle) muestra su salón con 🚪. Si cambian los salones de un año a otro, edita `const ROOM_NUMBERS` en `index.html`.

@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --bg:#eef2f1;
@@ -247,6 +248,19 @@
   }
   .lesson-notes:focus{outline:none;border-color:var(--dot,#3e7cb1);}
   .lesson-notes::placeholder{color:var(--ink-soft);opacity:0.7;}
+  .classroom-send{
+    display:flex;flex-direction:column;gap:8px;padding:10px;
+    border:1px dashed var(--line);border-radius:8px;background:var(--bg);
+  }
+  .classroom-send input[type="file"]{font-size:0.8rem;color:var(--ink-soft);}
+  .cr-copy-label{display:flex;align-items:center;gap:6px;font-size:0.82rem;color:var(--ink-soft);cursor:pointer;}
+  .cr-send-btn{
+    align-self:flex-start;padding:7px 14px;border-radius:6px;border:none;
+    background:var(--accent-el);color:#fff;font-family:inherit;font-size:0.85rem;
+    font-weight:500;cursor:pointer;
+  }
+  .cr-send-btn:disabled{opacity:0.5;cursor:default;}
+  .cr-status{font-size:0.78rem;color:var(--ink-soft);min-height:1em;}
   .del-btn{
     background:none;border:none;color:var(--ink-soft);cursor:pointer;
     font-size:1.1rem;line-height:1;padding:2px 4px;border-radius:4px;
@@ -379,6 +393,86 @@
     'EL':''
   };
 
+  // OAuth Client ID for real Classroom automation (create a draft with an
+  // uploaded file attached). Different from the Calendar API key above —
+  // this one asks you to sign in and grant permission. Leave as-is to
+  // disable this feature. See README.md for setup steps.
+  const OAUTH_CONFIG = {
+    clientId: 'YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com',
+    scopes: 'https://www.googleapis.com/auth/classroom.coursework.students https://www.googleapis.com/auth/drive.file'
+  };
+  let oauthTokenClient = null;
+  let oauthAccessToken = null;
+  function oauthConfigured(){
+    return !!(OAUTH_CONFIG.clientId && OAUTH_CONFIG.clientId !== 'YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com');
+  }
+  function getAccessToken(){
+    return new Promise((resolve, reject)=>{
+      if(typeof google === 'undefined' || !google.accounts){
+        reject(new Error('Google sign-in script not loaded yet — try again in a moment.'));
+        return;
+      }
+      if(!oauthTokenClient){
+        oauthTokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: OAUTH_CONFIG.clientId,
+          scope: OAUTH_CONFIG.scopes,
+          callback: ()=>{} // overridden per-call below
+        });
+      }
+      oauthTokenClient.callback = (resp)=>{
+        if(resp.error){ reject(new Error(resp.error)); return; }
+        oauthAccessToken = resp.access_token;
+        resolve(oauthAccessToken);
+      };
+      oauthTokenClient.requestAccessToken({ prompt: oauthAccessToken ? '' : 'consent' });
+    });
+  }
+  async function uploadFileToDrive(file, token){
+    const boundary = 'planeacion-boundary-' + Date.now();
+    const delimiter = `\r\n--${boundary}\r\n`;
+    const closeDelim = `\r\n--${boundary}--`;
+    const metadataPart = delimiter + 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify({name: file.name});
+    const mediaHeader = delimiter + `Content-Type: ${file.type || 'application/octet-stream'}\r\n\r\n`;
+    const body = new Blob([metadataPart, mediaHeader, file, closeDelim]);
+    const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': `multipart/related; boundary=${boundary}`
+      },
+      body
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      throw new Error((err.error && err.error.message) || `Drive upload failed (${res.status})`);
+    }
+    const data = await res.json();
+    return data.id;
+  }
+  async function createClassroomDraft(courseId, title, driveFileId, shareCopies, token){
+    const body = {
+      title,
+      workType: 'ASSIGNMENT',
+      state: 'DRAFT',
+      materials: [{
+        driveFile: {
+          driveFile: { id: driveFileId },
+          shareMode: shareCopies ? 'STUDENT_COPY' : 'VIEW'
+        }
+      }]
+    };
+    const res = await fetch(`https://classroom.googleapis.com/v1/courses/${courseId}/courseWork`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      throw new Error((err.error && err.error.message) || `Classroom API error (${res.status})`);
+    }
+    return res.json();
+  }
+
   // Each group's classroom/room number, shown on its card. Edit if rooms
   // change for a new school year.
   const ROOM_NUMBERS = {
@@ -459,6 +553,12 @@
   function isTodayClass(groupId){
     return !!(todayDayNumber && SCHEDULE_BY_DAY[todayDayNumber] && SCHEDULE_BY_DAY[todayDayNumber].includes(groupId));
   }
+  function classroomCourseIdFor(groupId){
+    const raw = (CLASSROOM_LINKS[groupId] || '').trim();
+    if(!raw) return '';
+    const m = /\/c\/([a-zA-Z0-9_-]+)/.exec(raw);
+    return m ? m[1] : raw;
+  }
 
   function summarize(groupId){
     const g = gradeOf(groupId);
@@ -537,6 +637,7 @@
         const slidesKey = lesson.id+':slides';
         const worksheetKey = lesson.id+':worksheet';
         const notesKey = lesson.id+':notes';
+        const sendKey = lesson.id+':classroomSend';
         const slidesLink = lesson.slidesLink || lesson.link || ''; // lesson.link = value from older versions
         const worksheetLink = lesson.worksheetLink || '';
         const hasSlides = !!slidesLink.trim();
@@ -545,6 +646,7 @@
         const slidesOpen = isPanelOpen(slidesKey, hasSlides);
         const worksheetOpen = isPanelOpen(worksheetKey, hasWorksheet);
         const notesOpen = isPanelOpen(notesKey, hasNotes);
+        const sendOpen = isPanelOpen(sendKey, false);
         return `<li class="lesson-row ${p.done?'done':''}" data-lid="${lesson.id}">
           <label class="check">
             <input type="checkbox" ${p.done?'checked':''} onchange="app.toggleLesson('${lesson.id}', this.checked)">
@@ -562,8 +664,10 @@
               <button class="icon-btn ${hasWorksheet?'active':''}" title="Worksheet" aria-label="Worksheet" onclick="app.togglePanel('${worksheetKey}', ${hasWorksheet})">📝</button>
               <button class="icon-btn ${hasNotes?'active':''}" title="Comment" aria-label="Comment" onclick="app.togglePanel('${notesKey}', ${hasNotes})">💬</button>
               <button class="icon-btn" title="Copy for Classroom" aria-label="Copy for Classroom" onclick="app.copyForClassroom('${lesson.id}')">🏫</button>
+              <button class="icon-btn ${sendOpen?'active':''}" title="Send file to Classroom" aria-label="Send file to Classroom" onclick="app.togglePanel('${sendKey}', false)">📤</button>
             </div>
             <div class="lesson-extra">
+              ${sendOpen ? renderClassroomSend(lesson.id) : ''}
               ${slidesOpen ? renderLinkRow({
                 key: slidesKey, icon:'📊', placeholder:'Slides link (Drive)...',
                 value: slidesLink, hasContent: hasSlides,
@@ -597,6 +701,15 @@
         <button style="background:${grade.color}" onclick="app.addLesson()">Add</button>
       </div>
     `;
+  }
+
+  function renderClassroomSend(lessonId){
+    return `<div class="classroom-send">
+      <input type="file" class="cr-file-input">
+      <label class="cr-copy-label"><input type="checkbox" class="cr-copy-check" checked> Give each student their own copy</label>
+      <button class="cr-send-btn" onclick="app.sendToClassroom('${lessonId}', this)">Create draft in Classroom</button>
+      <div class="cr-status"></div>
+    </div>`;
   }
 
   function renderLinkRow(opts){
@@ -755,14 +868,40 @@
       if(worksheetLink) parts.push(`Worksheet: ${worksheetLink}`);
       if(slidesLink) parts.push(`Slides: ${slidesLink}`);
       try{ await navigator.clipboard.writeText(parts.join('\n')); }catch(e){ console.error('clipboard error', e); }
-      const raw = (CLASSROOM_LINKS[currentGroup] || '').trim();
-      let url = 'https://classroom.google.com/u/0/h';
-      if(raw){
-        const m = /\/c\/([a-zA-Z0-9_-]+)/.exec(raw);
-        const courseId = m ? m[1] : raw;
-        url = `https://classroom.google.com/c/${courseId}/a/create`;
-      }
+      const courseId = classroomCourseIdFor(currentGroup);
+      const url = courseId ? `https://classroom.google.com/c/${courseId}/a/create` : 'https://classroom.google.com/u/0/h';
       window.open(url, '_blank', 'noopener');
+    },
+    async sendToClassroom(lessonId, btn){
+      const panel = btn.closest('.classroom-send');
+      const statusEl = panel.querySelector('.cr-status');
+      const fileInput = panel.querySelector('.cr-file-input');
+      const copyCheck = panel.querySelector('.cr-copy-check');
+      const file = fileInput.files[0];
+      if(!file){ statusEl.textContent = 'Choose a file first.'; return; }
+      const courseId = classroomCourseIdFor(currentGroup);
+      if(!courseId){ statusEl.textContent = 'No Classroom link set for this group yet — add one to CLASSROOM_LINKS.'; return; }
+      if(!oauthConfigured()){ statusEl.textContent = 'Google sign-in isn\'t set up yet — see README.md.'; return; }
+      const g = gradeOf(currentGroup);
+      const gradeData = state.grades[g] || {lessons:[]};
+      const lesson = gradeData.lessons.find(l=>l.id===lessonId);
+      if(!lesson) return;
+      btn.disabled = true;
+      try{
+        statusEl.textContent = 'Signing in to Google…';
+        const token = await getAccessToken();
+        statusEl.textContent = 'Uploading file to Drive…';
+        const driveFileId = await uploadFileToDrive(file, token);
+        statusEl.textContent = 'Creating draft in Classroom…';
+        const work = await createClassroomDraft(courseId, lesson.title, driveFileId, copyCheck.checked, token);
+        statusEl.textContent = 'Draft created ✓ opening it now…';
+        if(work.alternateLink) window.open(work.alternateLink, '_blank', 'noopener');
+      }catch(e){
+        console.error('classroom send error', e);
+        statusEl.textContent = 'Error: ' + (e.message || 'something went wrong.');
+      }finally{
+        btn.disabled = false;
+      }
     },
     debouncedSaveNotes
   };
