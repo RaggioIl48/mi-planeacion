@@ -373,17 +373,18 @@
     '1': { '6C':['Period 1'], '8C':['Period 3'], '7A':['Period 4'], '7B':['Period 5'], '8B':['Period 6'] },
     '2': { '7B':['Period 1'], '6A':['Period 2'], '8A':['Period 3'], '7A':['Period 4'], '8C':['Period 6'] },
     '3': { '6A':['Period 2'], '6B':['Period 4'], '7C':['Period 5'] },
-    '4': { '9C':['Homeroom'], '8B':['Period 2'], '7C':['Period 3'], '6C':['Period 4'] },
-    '5': { '9B':['Homeroom','Break'], '9A':['Period 2'], '9C':['Period 5'] },
-    '6': { '9A':['Homeroom'], '8A':['Period 2'], '6B':['Period 5'], 'EL':['Period 6'] },
+    '4': { '9C':['Period 1'], '8B':['Period 2'], '7C':['Period 3'], '6C':['Period 4'] },
+    '5': { '9B':['Period 1','Period 4'], '9A':['Period 3'], '9C':['Period 6'] },
+    '6': { '9A':['Period 1'], '8A':['Period 2'], '6B':['Period 5'], 'EL':['Period 6'] },
   };
   let todayDayNumber = null; // '1'-'6' once known, else null (no school today, or not fetched yet)
   let tomorrowDayNumber; // undefined = not fetched yet, null = no school, '1'-'6' once known
 
   // Bell schedules (24h "HH:MM", America/Bogota) used for the "current
   // period" indicator. Middle school (6-8, Elective) and high school (9)
-  // run on different clocks. Grade 9 has no listed Lunch/Period 6 because
-  // this schedule never has a grade-9 class in those slots.
+  // run on entirely different clocks AND period numbering — HS's own
+  // Period 1 starts at 7:30, before MS's Period 1 even begins. HS's day
+  // ends after its Period 6 (12:05-12:50); there's no HS Lunch/Period 7.
   const MS_SCHEDULE = [
     {label:'Period 1', start:'07:45', end:'08:40'},
     {label:'Period 2', start:'08:45', end:'09:40'},
@@ -395,13 +396,13 @@
     {label:'Period 6', start:'14:05', end:'15:00'},
   ];
   const HS_SCHEDULE = [
-    {label:'Homeroom', start:'07:30', end:'08:15'},
-    {label:'Period 1', start:'08:20', end:'09:05'},
-    {label:'Period 2', start:'09:10', end:'09:55'},
-    {label:'Period 3', start:'09:55', end:'10:20'},
-    {label:'Break',    start:'10:25', end:'11:10'},
-    {label:'Period 4', start:'11:15', end:'12:00'},
-    {label:'Period 5', start:'12:05', end:'12:50'},
+    {label:'Period 1', start:'07:30', end:'08:15'},
+    {label:'Period 2', start:'08:20', end:'09:05'},
+    {label:'Period 3', start:'09:10', end:'09:55'},
+    {label:'Snack',    start:'09:55', end:'10:20'},
+    {label:'Period 4', start:'10:25', end:'11:10'},
+    {label:'Period 5', start:'11:15', end:'12:00'},
+    {label:'Period 6', start:'12:05', end:'12:50'},
   ];
 
   // Optional: each group's Google Classroom link, used by the "Copy for
