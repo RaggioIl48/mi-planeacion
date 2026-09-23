@@ -89,9 +89,29 @@
     border-radius:20px;
   }
   .storage-note.local{color:var(--accent-8);border-color:var(--accent-8);}
-  .today-banner{
-    font-size:0.85rem;color:var(--ink-soft);margin:-18px 0 24px;
+  .today-row{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    margin:-18px 0 24px;flex-wrap:wrap;
   }
+  .today-banner{font-size:0.85rem;color:var(--ink-soft);}
+  .tomorrow-wrap{position:relative;flex-shrink:0;}
+  .tomorrow-btn{
+    background:none;border:1px solid var(--line);color:var(--ink-soft);
+    padding:4px 10px;border-radius:20px;font-size:0.78rem;cursor:pointer;font-family:inherit;
+  }
+  .tomorrow-btn:hover{background:var(--line-soft);}
+  .tomorrow-popup{
+    position:absolute;top:calc(100% + 6px);right:0;min-width:220px;max-width:280px;
+    background:var(--bg-elevated);border:1px solid var(--line);border-radius:8px;
+    box-shadow:var(--shadow);padding:10px 12px;z-index:20;
+  }
+  .tomorrow-title{font-family:'Fraunces', serif;font-weight:600;font-size:0.95rem;margin-bottom:8px;}
+  .tomorrow-row{
+    display:flex;justify-content:space-between;gap:10px;font-size:0.82rem;
+    padding:3px 0;border-bottom:1px solid var(--line-soft);
+  }
+  .tomorrow-row:last-child{border-bottom:none;}
+  .tomorrow-period{color:var(--ink-soft);white-space:nowrap;}
 
   /* ---------- HOME ---------- */
   .grade-block{margin-bottom:30px;}
@@ -296,7 +316,13 @@
     <h1>My Planning</h1>
     <span class="storage-note" id="storageNote">Syncing…</span>
   </header>
-  <div class="today-banner hidden" id="todayBanner"></div>
+  <div class="today-row">
+    <div class="today-banner hidden" id="todayBanner"></div>
+    <div class="tomorrow-wrap">
+      <button class="tomorrow-btn" onclick="app.toggleTomorrow()">📅 Tomorrow</button>
+      <div class="tomorrow-popup hidden" id="tomorrowPopup"></div>
+    </div>
+  </div>
 
   <div id="homeView"></div>
   <div id="detailView" class="hidden"></div>
@@ -349,6 +375,7 @@
     '6': { '9A':['Homeroom'], '8A':['Period 2'], '6B':['Period 5'], 'EL':['Period 6'] },
   };
   let todayDayNumber = null; // '1'-'6' once known, else null (no school today, or not fetched yet)
+  let tomorrowDayNumber; // undefined = not fetched yet, null = no school, '1'-'6' once known
 
   // Bell schedules (24h "HH:MM", America/Bogota) used for the "current
   // period" indicator. Middle school (6-8, Elective) and high school (9)
@@ -770,6 +797,17 @@
     openGroup(groupId){ currentGroup = groupId; document.getElementById('homeView').classList.add('hidden'); document.getElementById('detailView').classList.remove('hidden'); render(); },
     goHome(){ currentGroup = null; document.getElementById('detailView').classList.add('hidden'); document.getElementById('homeView').classList.remove('hidden'); render(); },
     setEditing(v){ editingActive = v; },
+    async toggleTomorrow(){
+      const popup = document.getElementById('tomorrowPopup');
+      const opening = popup.classList.contains('hidden');
+      if(!opening){ popup.classList.add('hidden'); return; }
+      popup.classList.remove('hidden');
+      renderTomorrowList();
+      if(tomorrowDayNumber === undefined){
+        tomorrowDayNumber = await fetchDayNumberForDate(bogotaDateString(1));
+        renderTomorrowList();
+      }
+    },
     togglePanel(key, hasContent){
       panelState[key] = !isPanelOpen(key, hasContent);
       renderDetail();
@@ -906,22 +944,34 @@
   window.app = app;
 
   // ---------- academic calendar: today's rotation day ----------
-  async function fetchTodayDayNumber(){
-    if(!CALENDAR_CONFIG.apiKey || CALENDAR_CONFIG.apiKey === 'YOUR_GOOGLE_API_KEY') return;
+  function bogotaDateString(offsetDays){
+    const parts = new Intl.DateTimeFormat('en-CA', {timeZone:'America/Bogota', year:'numeric', month:'2-digit', day:'2-digit'}).formatToParts(new Date());
+    const y = +parts.find(p=>p.type==='year').value;
+    const mo = +parts.find(p=>p.type==='month').value;
+    const d = +parts.find(p=>p.type==='day').value;
+    const dt = new Date(Date.UTC(y, mo-1, d));
+    dt.setUTCDate(dt.getUTCDate() + offsetDays);
+    return dt.toISOString().slice(0, 10);
+  }
+  async function fetchDayNumberForDate(dateStr){
+    if(!CALENDAR_CONFIG.apiKey || CALENDAR_CONFIG.apiKey === 'YOUR_GOOGLE_API_KEY') return null;
     try{
-      const bogotaDate = new Intl.DateTimeFormat('en-CA', {timeZone:'America/Bogota', year:'numeric', month:'2-digit', day:'2-digit'}).format(new Date());
-      const timeMin = `${bogotaDate}T00:00:00-05:00`;
-      const timeMax = `${bogotaDate}T23:59:59-05:00`;
+      const timeMin = `${dateStr}T00:00:00-05:00`;
+      const timeMax = `${dateStr}T23:59:59-05:00`;
       const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_CONFIG.calendarId)}/events`
         + `?key=${encodeURIComponent(CALENDAR_CONFIG.apiKey)}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true`;
       const res = await fetch(url);
-      if(!res.ok) return;
+      if(!res.ok) return null;
       const data = await res.json();
       for(const ev of (data.items || [])){
         const m = /(?:d[ií]a|day)\s*#?\s*([1-6])\b/i.exec(ev.summary || '');
-        if(m){ todayDayNumber = m[1]; break; }
+        if(m) return m[1];
       }
     }catch(e){ console.error('calendar fetch error', e); }
+    return null;
+  }
+  async function fetchTodayDayNumber(){
+    todayDayNumber = await fetchDayNumberForDate(bogotaDateString(0));
   }
   function bogotaMinutesNow(){
     const parts = new Intl.DateTimeFormat('en-GB', {timeZone:'America/Bogota', hour:'2-digit', minute:'2-digit', hour12:false}).formatToParts(new Date());
@@ -957,6 +1007,31 @@
     } else {
       el.classList.add('hidden');
     }
+  }
+
+  function renderTomorrowList(){
+    const el = document.getElementById('tomorrowPopup');
+    if(!el) return;
+    if(!CALENDAR_CONFIG.apiKey || CALENDAR_CONFIG.apiKey === 'YOUR_GOOGLE_API_KEY'){
+      el.innerHTML = `<p class="empty-state">Calendar isn't connected yet — see README.md.</p>`;
+      return;
+    }
+    if(tomorrowDayNumber === undefined){
+      el.innerHTML = `<p class="empty-state">Loading…</p>`;
+      return;
+    }
+    if(tomorrowDayNumber === null){
+      el.innerHTML = `<div class="tomorrow-title">Tomorrow</div><p class="empty-state">No school tomorrow.</p>`;
+      return;
+    }
+    const day = SCHEDULE_BY_DAY[tomorrowDayNumber] || {};
+    const rows = Object.keys(day).map(groupId=>{
+      const grade = gradeInfo(gradeOf(groupId));
+      const label = grade.groups.length > 1 ? groupId : grade.name;
+      return `<div class="tomorrow-row"><span>${escapeHtml(label)}</span><span class="tomorrow-period">${escapeHtml(day[groupId].join(' · '))}</span></div>`;
+    }).join('');
+    el.innerHTML = `<div class="tomorrow-title">Tomorrow: Day ${tomorrowDayNumber}</div>`
+      + (rows || `<p class="empty-state">Nothing scheduled.</p>`);
   }
 
   // ---------- init ----------
@@ -1010,6 +1085,12 @@
     // so also refresh immediately whenever the tab becomes visible again.
     document.addEventListener('visibilitychange', ()=>{
       if(document.visibilityState === 'visible') updateTodayBanner();
+    });
+    document.addEventListener('click', (e)=>{
+      const popup = document.getElementById('tomorrowPopup');
+      if(popup && !popup.classList.contains('hidden') && !e.target.closest('.tomorrow-wrap')){
+        popup.classList.add('hidden');
+      }
     });
   }
 
