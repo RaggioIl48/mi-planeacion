@@ -362,6 +362,9 @@
     calendarId: 'comunicaciones@liceoingles.edu.co'
   };
 
+  // Chronological order of period labels, used to sort the Tomorrow list.
+  const PERIOD_ORDER = ['Homeroom','Period 1','Period 2','Period 3','Break','Period 4','Period 5','Lunch','Period 6'];
+
   // Which groups you teach on each rotation day, and in which period, from
   // your bell schedule. Duty/location periods (Snack, Restaurant, Flex,
   // Coliseo...) aren't classes and are left out. Update this if your
@@ -1025,10 +1028,17 @@
       return;
     }
     const day = SCHEDULE_BY_DAY[tomorrowDayNumber] || {};
-    const rows = Object.keys(day).map(groupId=>{
+    // one row per (group, period) — a group with two periods that day (e.g.
+    // Homeroom and Break) gets two separate rows, not one merged row.
+    const entries = [];
+    Object.keys(day).forEach(groupId=>{
+      day[groupId].forEach(period=> entries.push({groupId, period}));
+    });
+    entries.sort((a,b)=> PERIOD_ORDER.indexOf(a.period) - PERIOD_ORDER.indexOf(b.period));
+    const rows = entries.map(({groupId, period})=>{
       const grade = gradeInfo(gradeOf(groupId));
       const label = grade.groups.length > 1 ? groupId : grade.name;
-      return `<div class="tomorrow-row"><span>${escapeHtml(label)}</span><span class="tomorrow-period">${escapeHtml(day[groupId].join(' · '))}</span></div>`;
+      return `<div class="tomorrow-row"><span>${escapeHtml(label)}</span><span class="tomorrow-period">${escapeHtml(period)}</span></div>`;
     }).join('');
     el.innerHTML = `<div class="tomorrow-title">Tomorrow: Day ${tomorrowDayNumber}</div>`
       + (rows || `<p class="empty-state">Nothing scheduled.</p>`);
