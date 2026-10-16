@@ -89,6 +89,7 @@
     border-radius:20px;
   }
   .storage-note.local{color:var(--accent-8);border-color:var(--accent-8);}
+  .storage-note.error{color:var(--danger);border-color:var(--danger);background:var(--danger-bg);}
   .today-row{
     display:flex;align-items:center;justify-content:space-between;gap:12px;
     margin:-18px 0 24px;flex-wrap:wrap;
@@ -562,10 +563,24 @@
     state.groups[g] = lsGet(groupKey(g)) || {progress:{}};
   }
 
+  // When Firestore rejects reads/writes (e.g. expired test-mode rules), say so
+  // visibly instead of leaving cards stuck on "Loading…" with nothing explaining why.
+  let dbError = false;
+  function setDbError(err){
+    console.error('database error', err);
+    if(dbError) return;
+    dbError = true;
+    const noteEl = document.getElementById('storageNote');
+    noteEl.textContent = '⚠ Database unreachable — changes are NOT being saved. Check Firestore rules (see README).';
+    noteEl.classList.remove('local');
+    noteEl.classList.add('error');
+    render();
+  }
+
   async function saveGrade(gradeId, data){
     state.grades[gradeId] = data;
     if(storageMode === 'db'){
-      try{ await db.doc('grades/'+gradeId).set(data); }catch(e){ console.error(e); }
+      try{ await db.doc('grades/'+gradeId).set(data); }catch(e){ setDbError(e); }
     } else {
       lsSet(gradeKey(gradeId), data);
     }
@@ -573,7 +588,7 @@
   async function saveGroup(groupId, data){
     state.groups[groupId] = data;
     if(storageMode === 'db'){
-      try{ await db.doc('groups/'+groupId).set(data); }catch(e){ console.error(e); }
+      try{ await db.doc('groups/'+groupId).set(data); }catch(e){ setDbError(e); }
     } else {
       lsSet(groupKey(groupId), data);
     }
@@ -628,7 +643,7 @@
         const room = ROOM_NUMBERS[groupId];
         const roomBadge = room ? ` <span class="g-room">🚪 ${escapeHtml(room)}</span>` : '';
         if(!loaded || !state.groups[groupId]){
-          html += `<div class="group-card${todayCls}" style="--dot:${grade.color}"><div class="g-name">${label}${roomBadge}</div><div class="g-empty">Loading…</div></div>`;
+          html += `<div class="group-card${todayCls}" style="--dot:${grade.color}"><div class="g-name">${label}${todayBadge}${roomBadge}</div><div class="g-empty">${dbError ? 'Can’t load — see warning above' : 'Loading…'}</div></div>`;
           return;
         }
         const s = summarize(groupId);
@@ -1066,13 +1081,13 @@
         db.doc('grades/'+grade.id).onSnapshot(snap=>{
           state.grades[grade.id] = snap.exists ? snap.data() : {lessons:[]};
           if(!editingActive) render();
-        }, err=>{ console.error('grade snapshot error', err); });
+        }, err=>{ setDbError(err); });
         grade.groups.forEach(suffix=>{
           const groupId = grade.id+suffix;
           db.doc('groups/'+groupId).onSnapshot(snap=>{
             state.groups[groupId] = snap.exists ? snap.data() : {progress:{}};
             if(!editingActive) render();
-          }, err=>{ console.error('group snapshot error', err); });
+          }, err=>{ setDbError(err); });
         });
       });
     } else {

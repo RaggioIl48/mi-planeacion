@@ -103,6 +103,23 @@ Esto sí requiere que autorices el acceso una vez (a diferencia de la API key de
 
 Cada tarjeta de grupo (y el encabezado al entrarle) muestra su salón con 🚪. Si cambian los salones de un año a otro, edita `const ROOM_NUMBERS` en `index.html`.
 
+### Si la página se queda en "Loading…" / aviso rojo "Database unreachable"
+
+Las reglas del "modo de prueba" de Firestore **vencen a los 30 días**; después de eso la base de datos rechaza todo (`PERMISSION_DENIED`) y las tarjetas no cargan. Solución, una sola vez:
+
+1. [console.firebase.google.com](https://console.firebase.google.com) → proyecto `my-planning-cbe30` → **Firestore Database** → pestaña **Reglas**.
+2. Reemplaza todo el contenido por:
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /grades/{doc} { allow read, write: if true; }
+       match /groups/{doc} { allow read, write: if true; }
+     }
+   }
+   ```
+3. **Publicar**, y recarga la página.
+
 ### Nota de seguridad sobre Firestore en "modo de prueba"
 
 El modo de prueba deja la base de datos abierta a cualquiera que tenga tu `firebaseConfig` (que queda visible en el código fuente de la página, ya que es una app 100% del lado del cliente). Para un planeador de clases sin datos sensibles esto suele ser aceptable, pero si te preocupa:
